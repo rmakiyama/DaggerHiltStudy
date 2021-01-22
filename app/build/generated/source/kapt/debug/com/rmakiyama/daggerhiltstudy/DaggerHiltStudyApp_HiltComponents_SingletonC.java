@@ -162,12 +162,37 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
     }
 
     private final class ActivityCImpl extends HiltStudyApp_HiltComponents.ActivityC {
+      private volatile Object fugaFuga = new MemoizedSentinel();
+
       private ActivityCImpl(Activity activity) {
 
       }
 
+      private HogeHoge hogeHoge() {
+        return new HogeHoge(new Hoge());
+      }
+
+      private FugaFuga fugaFuga() {
+        Object local = fugaFuga;
+        if (local instanceof MemoizedSentinel) {
+          synchronized (local) {
+            local = fugaFuga;
+            if (local instanceof MemoizedSentinel) {
+              local = new FugaFuga(DaggerHiltStudyApp_HiltComponents_SingletonC.this.fuga());
+              fugaFuga = DoubleCheck.reentrantCheck(fugaFuga, local);
+            }
+          }
+        }
+        return (FugaFuga) local;
+      }
+
+      private PiyoPiyo piyoPiyo() {
+        return MainActivityModule_ProvidePiyoPiyoFactory.providePiyoPiyo(HiltStudyAppModule_ProvidePiyoFactory.providePiyo());
+      }
+
       @Override
       public void injectMainActivity(MainActivity mainActivity) {
+        injectMainActivity2(mainActivity);
       }
 
       @Override
@@ -183,6 +208,16 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
       @Override
       public ViewComponentBuilder viewComponentBuilder() {
         return new ViewCBuilder();
+      }
+
+      private MainActivity injectMainActivity2(MainActivity instance) {
+        MainActivity_MembersInjector.injectHoge(instance, new Hoge());
+        MainActivity_MembersInjector.injectHogeHoge(instance, hogeHoge());
+        MainActivity_MembersInjector.injectFuga(instance, DaggerHiltStudyApp_HiltComponents_SingletonC.this.fuga());
+        MainActivity_MembersInjector.injectFugaFuga(instance, fugaFuga());
+        MainActivity_MembersInjector.injectPiyo(instance, HiltStudyAppModule_ProvidePiyoFactory.providePiyo());
+        MainActivity_MembersInjector.injectPiyoPiyo(instance, piyoPiyo());
+        return instance;
       }
 
       private final class FragmentCBuilder implements HiltStudyApp_HiltComponents.FragmentC.Builder {

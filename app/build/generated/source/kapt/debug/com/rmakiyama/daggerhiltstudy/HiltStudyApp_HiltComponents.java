@@ -156,7 +156,8 @@ public final class HiltStudyApp_HiltComponents {
           FragmentCBuilderModule.class,
           ViewCBuilderModule.class,
           HiltWrapper_ActivityModule.class,
-          HiltWrapper_DefaultViewModelFactories_ActivityModule.class
+          HiltWrapper_DefaultViewModelFactories_ActivityModule.class,
+          MainActivityModule.class
       }
   )
   @ActivityScoped
