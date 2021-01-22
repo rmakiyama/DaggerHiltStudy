@@ -1,10 +1,62 @@
-# Step3. アクティビティにAndroidEntryPointアノテーションをつける。
+# Step4. アクティビティにインスタンスを注入する。
 
-まずは`@AndroidEntryPoint`アノテーションを`MainActivity`につけるのみで様子を見てみます。
+さらにオブジェクトグラフにバインディングを登録してみます。
+
+こちらは`@Inject`を使った登録。
+
+```kotlin
+class HogeHoge @Inject constructor(
+    private val hoge: Hoge,
+)
+```
+
+こちらは`@Inject`を使った登録に`@ActivityScoped`スコープを付与。
+
+```kotlin
+@ActivityScoped
+class FugaFuga @Inject constructor(
+    private val fuga: Fuga,
+)
+```
+
+こちらはインタフェースを定義します。
+
+```kotlin
+interface PiyoPiyo
+
+class PiyoPiyoImpl @Inject constructor(
+    private val piyo: Piyo,
+) : PiyoPiyo
+```
+
+そして、モジュールを使って`ActivityComponent`に登録。
+
+```kotlin
+@Module
+@InstallIn(ActivityComponent::class)
+object MainActivityModule {
+
+    @Provides
+    fun providePiyoPiyo(
+        piyo: Piyo,
+    ): PiyoPiyo {
+        return PiyoPiyoImpl(piyo)
+    }
+}
+```
+
+さらにこれらを`MainActivity`にメンバー変数としてインジェクトしてみます。  
+ついでに`Hoge`や`Fuga`もインジェクトしてみましょう。
 
 ```kotlin
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject lateinit var hoge: Hoge
+    @Inject lateinit var hogeHoge: HogeHoge
+    @Inject lateinit var fuga: Fuga
+    @Inject lateinit var fugaFuga: FugaFuga
+    @Inject lateinit var piyo: Piyo
+    @Inject lateinit var piyoPiyo: PiyoPiyo
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -12,66 +64,21 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-この状態でビルドすると、以下のファイルが自動生成されます。
+ここでビルドすると、前回同様、追加したクラスのファクトリークラスとメンバーインジェクターが生成されました。  
+また`DaggerHiltStudyApp_HiltComponents_SingletonC`/`HiltStudyApp_HiltComponents`にコードが追加されていました。
 
-- Hilt_MainActivity
-- MainActivity_GeneratedInjector
+さて、ここまでくると、なんとなく頭の中でHiltの生成するコードが浮かんでくるのではないでしょうか？
 
-そして、以下のクラスにコードが追加されました。
+ぜひ頭の中で思い浮かべて、ソースコードをご確認ください！
 
-- DaggerHiltStudyApp_HiltComponents_SingletonC
-- HiltStudyApp_HiltComponents
+# まとめ
 
-なにやら見覚えがありますね。それぞれを軽く見ていきます。
+かんたんなHiltの連携とメンバー変数のインジェクトをした際の、Hiltが生成するコードについて見ていきました。  
+どんなコードが生成されているかを理解すると気持ちいいですね。Hiltの気持ちを少しわかった気がします。エラー文とも仲良くなれる気がします。
 
-## Hilt_MainActivity
+# 参考
 
-`Hilt_MainActivity`はHiltライブラリの持つクラスである`ActivityComponentManager`を内部で保持していました。  
-概ね実装は`Hilt_HiltStudyApp`と同じパターンです。
-
-`ActivityComponentManager`は`ApplicationComponentManager`と違い、`generatedComponent()`メソッドで取得するコンポーネントがシングルトンになっているという点です。前述したように、Hiltでは1つのアクティビティコンポーネントを使用してすべてのアクティビティを注入するからです。
-
-また、`Hilt_MainActivity`には`ViewModelProvider.Factory`を取得するメソッドも定義されていました。
-
-## MainActivity_GeneratedInjector
-
-アクティビティコンポーネントに`MainActivity`がアクセスできるように`injectMainActivity()`メソッドがインタフェースとして定義しています。  
-ここもアプリケーションのときと同じ流れですね。
-
-## DaggerHiltStudyApp_HiltComponents_SingletonCの変更
-
-アクティビティコンポーネントに`MainActivity`がアクセスできるようにするメソッドが追加されたのみでした。
-
-```java
-+     @Override
-+     public void injectMainActivity(MainActivity mainActivity) {
-+     }
-```
-
-## HiltStudyApp_HiltComponentsの変更
-
-アクティビティコンポーネントが`MainActivity_GeneratedInjector`を実装するような追加がされたのみでした。
-
-```java
-  @Subcomponent(
-      modules = {
-          FragmentCBuilderModule.class,
-          ViewCBuilderModule.class,
-          HiltWrapper_ActivityModule.class,
-          HiltWrapper_DefaultViewModelFactories_ActivityModule.class
-      }
-  )
-  @ActivityScoped
-+ public abstract static class ActivityC implements MainActivity_GeneratedInjector,
-+     ActivityComponent,
-      DefaultViewModelFactories.ActivityEntryPoint,
-      FragmentComponentManager.FragmentComponentBuilderEntryPoint,
-      ViewComponentManager.ViewComponentBuilderEntryPoint,
-      GeneratedComponent {
-    @Subcomponent.Builder
-    abstract interface Builder extends ActivityComponentBuilder {
-    }
-  }
-```
-
-[Step4に進む👉🏻](https://github.com/rmakiyama/DaggerHiltStudy/tree/step-4_add-activity-member)
+- [Master of Dagger あんざいゆき第2版【技術書典9 新刊】](https://booth.pm/ja/items/1577764)
+- [Dagger の基本](https://developer.android.com/training/dependency-injection/dagger-basics?hl=ja)
+- [Android アプリで Dagger を使用する](https://developer.android.com/training/dependency-injection/dagger-android?hl=ja)
+- [Hilt を使用した依存関係の注入](https://developer.android.com/training/dependency-injection/hilt-android?hl=ja)
