@@ -112,6 +112,7 @@ public final class HiltStudyApp_HiltComponents {
   @Component(
       modules = {
           ApplicationContextModule.class,
+          HiltStudyAppModule.class,
           ActivityRetainedCBuilderModule.class,
           ServiceCBuilderModule.class
       }

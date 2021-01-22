@@ -34,6 +34,8 @@ import javax.inject.Provider;
 public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStudyApp_HiltComponents.SingletonC {
   private final ApplicationContextModule applicationContextModule;
 
+  private volatile Object fuga = new MemoizedSentinel();
+
   private DaggerHiltStudyApp_HiltComponents_SingletonC(
       ApplicationContextModule applicationContextModuleParam) {
     this.applicationContextModule = applicationContextModuleParam;
@@ -43,8 +45,23 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
     return new Builder();
   }
 
+  private Fuga fuga() {
+    Object local = fuga;
+    if (local instanceof MemoizedSentinel) {
+      synchronized (local) {
+        local = fuga;
+        if (local instanceof MemoizedSentinel) {
+          local = new Fuga();
+          fuga = DoubleCheck.reentrantCheck(fuga, local);
+        }
+      }
+    }
+    return (Fuga) local;
+  }
+
   @Override
   public void injectHiltStudyApp(HiltStudyApp hiltStudyApp) {
+    injectHiltStudyApp2(hiltStudyApp);
   }
 
   @Override
@@ -57,6 +74,13 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
     return new ServiceCBuilder();
   }
 
+  private HiltStudyApp injectHiltStudyApp2(HiltStudyApp instance) {
+    HiltStudyApp_MembersInjector.injectHoge(instance, new Hoge());
+    HiltStudyApp_MembersInjector.injectFuga(instance, fuga());
+    HiltStudyApp_MembersInjector.injectPiyo(instance, HiltStudyAppModule_ProvidePiyoFactory.providePiyo());
+    return instance;
+  }
+
   public static final class Builder {
     private ApplicationContextModule applicationContextModule;
 
@@ -65,6 +89,15 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
 
     public Builder applicationContextModule(ApplicationContextModule applicationContextModule) {
       this.applicationContextModule = Preconditions.checkNotNull(applicationContextModule);
+      return this;
+    }
+
+    /**
+     * @deprecated This module is declared, but an instance is not used in the component. This method is a no-op. For more, see https://dagger.dev/unused-modules.
+     */
+    @Deprecated
+    public Builder hiltStudyAppModule(HiltStudyAppModule hiltStudyAppModule) {
+      Preconditions.checkNotNull(hiltStudyAppModule);
       return this;
     }
 
