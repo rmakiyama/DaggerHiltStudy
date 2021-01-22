@@ -167,6 +167,10 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
       }
 
       @Override
+      public void injectMainActivity(MainActivity mainActivity) {
+      }
+
+      @Override
       public DefaultViewModelFactories.InternalFactoryFactory getHiltInternalFactoryFactory() {
         return DefaultViewModelFactories_InternalFactoryFactory_Factory.newInstance(ApplicationContextModule_ProvideApplicationFactory.provideApplication(DaggerHiltStudyApp_HiltComponents_SingletonC.this.applicationContextModule), Collections.<String>emptySet(), new ViewModelCBuilder(), Collections.<ViewModelProvider.Factory>emptySet(), Collections.<ViewModelProvider.Factory>emptySet());
       }
