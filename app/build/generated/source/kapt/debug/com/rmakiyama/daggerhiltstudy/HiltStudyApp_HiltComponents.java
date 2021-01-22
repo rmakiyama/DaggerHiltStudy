@@ -18,10 +18,9 @@ import dagger.hilt.android.internal.builders.ServiceComponentBuilder;
 import dagger.hilt.android.internal.builders.ViewComponentBuilder;
 import dagger.hilt.android.internal.builders.ViewModelComponentBuilder;
 import dagger.hilt.android.internal.builders.ViewWithFragmentComponentBuilder;
-import dagger.hilt.android.internal.lifecycle.HiltWrapper_DefaultViewModelFactories_ActivityEntryPoint;
+import dagger.hilt.android.internal.lifecycle.DefaultViewModelFactories;
+import dagger.hilt.android.internal.lifecycle.HiltViewModelFactory;
 import dagger.hilt.android.internal.lifecycle.HiltWrapper_DefaultViewModelFactories_ActivityModule;
-import dagger.hilt.android.internal.lifecycle.HiltWrapper_DefaultViewModelFactories_FragmentEntryPoint;
-import dagger.hilt.android.internal.lifecycle.HiltWrapper_HiltViewModelFactory_ViewModelFactoriesEntryPoint;
 import dagger.hilt.android.internal.lifecycle.HiltWrapper_HiltViewModelFactory_ViewModelModule;
 import dagger.hilt.android.internal.managers.ActivityComponentManager;
 import dagger.hilt.android.internal.managers.FragmentComponentManager;
@@ -161,7 +160,7 @@ public final class HiltStudyApp_HiltComponents {
   )
   @ActivityScoped
   public abstract static class ActivityC implements ActivityComponent,
-      HiltWrapper_DefaultViewModelFactories_ActivityEntryPoint,
+      DefaultViewModelFactories.ActivityEntryPoint,
       FragmentComponentManager.FragmentComponentBuilderEntryPoint,
       ViewComponentManager.ViewComponentBuilderEntryPoint,
       GeneratedComponent {
@@ -175,7 +174,7 @@ public final class HiltStudyApp_HiltComponents {
   )
   @ViewModelScoped
   public abstract static class ViewModelC implements ViewModelComponent,
-      HiltWrapper_HiltViewModelFactory_ViewModelFactoriesEntryPoint,
+      HiltViewModelFactory.ViewModelFactoriesEntryPoint,
       GeneratedComponent {
     @Subcomponent.Builder
     abstract interface Builder extends ViewModelComponentBuilder {
@@ -196,7 +195,7 @@ public final class HiltStudyApp_HiltComponents {
   )
   @FragmentScoped
   public abstract static class FragmentC implements FragmentComponent,
-      HiltWrapper_DefaultViewModelFactories_FragmentEntryPoint,
+      DefaultViewModelFactories.FragmentEntryPoint,
       ViewComponentManager.ViewWithFragmentComponentBuilderEntryPoint,
       GeneratedComponent {
     @Subcomponent.Builder
