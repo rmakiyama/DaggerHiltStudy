@@ -1,110 +1,151 @@
-# Step1. Hiltをアプリケーションに適用する。
+# Step2. オブジェクトグラフにバインディングを登録する。
 
-導入方法は割愛です。
+次に、オブジェクトグラフにバインディングを登録してみます。
 
-まずは`@HiltAndroidApp`アノテーションをつけるのみで様子を見てみます。
+こちらは`@Inject`を使った登録。
 
 ```kotlin
-package com.rmakiyama.daggerhiltstudy
-
-import android.app.Application
-import dagger.hilt.android.HiltAndroidApp
-
-@HiltAndroidApp
-class HiltStudyApp : Application()
-
+class Hoge @Inject constructor()
 ```
 
-こちらをビルドすると、以下のファイルが自動生成されます。
+こちらは`@Inject`を使った登録に`@Singleton`スコープを付与。
 
-- Hilt_HiltStudyApp
-- DaggerHiltStudyApp_HiltComponents_SingletonC
-- HiltStudyApp_GeneratedInjector
-- HiltStudyApp_HiltComponents
-- com_rmakiyama_daggerhiltstudy_HiltStudyApp_GeneratedInjectorModuleDeps
+```kotlin
+@Singleton
+class Fuga @Inject constructor()
+```
 
-それぞれについて見ていきましょう。
+こちらはインタフェースを定義します。
 
-## Hilt_HiltStudyApp
+```kotlin
+interface Piyo
 
-どうやら`Hilt_${application_name}`なクラスが生成されるようです。Androidの`Application`クラスを継承しています。
+class PiyoImpl : Piyo
+```
 
-クラスを見てみると`Hilt_HiltStudyApp`はHiltライブラリの持つクラスである`ApplicationComponentManager`を内部で保持していました。見るからにApllicaionのComponentをManagerしてくれそうですね。
+そして、モジュールを使って`SingletonComponent`に登録。
 
-```java
-  ...
-  private final ApplicationComponentManager componentManager = new ApplicationComponentManager(new ComponentSupplier() {
-    @Override
-    public Object get() {
-      return DaggerHiltStudyApp_HiltComponents_SingletonC.builder()
-          .applicationContextModule(new ApplicationContextModule(Hilt_HiltStudyApp.this))
-          .build();
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object HiltStudyAppModule {
+
+    @Provides
+    fun providePiyo(): Piyo {
+        return PiyoImpl()
     }
-  });
-  ...
+}
 ```
 
-`ComponentSupplier`を使ってComponentを生成しているようです。`ComponentSupplier`は`get`メソッドを持つただのインタフェースでした。  
-生成している`DaggerHiltStudyApp_HiltComponents_SingletonC`はアノテーションにより生成されたクラスです。これまでDagger2を使ったことのある人は見覚えのある記述ではないでしょうか。これがアプリケーションレベルのコンポーネントのようです。  
-`ApplicationContextModule`なんてのもこのコンポーネントに指定しているようです。これはHilt内部クラスで、どうやら`ApplicatinContext`をオブジェクトグラフに登録しているようですね。
+さらにこれらを`HiltStudyApp`にメンバー変数としてインジェクトしてみます。
 
-その後、`Application`の`onCreate`をオーバーライドし、HiltStudyAppがコンポーネントにアクセスできるよう`injectHiltStudyApp`を呼び出しています。
+```kotlin
+@HiltAndroidApp
+class HiltStudyApp : Application() {
+    @Inject lateinit var hoge: Hoge
+    @Inject lateinit var fuga: Fuga
+    @Inject lateinit var piyo: Piyo
+}
+```
+
+ここでビルドすると以下のクラスが生成されました。
+
+- Hoge_Factory
+- Fuga_Factory
+- HiltStudyAppModule_ProvidePiyoFactory
+- HiltStudyApp_MembersInjector
+
+また、以下のクラスにコードが追加されました。
+
+- DaggerHiltStudyApp_HiltComponents_SingletonC
+- HiltStudyApp_HiltComponents
+
+## それぞれのFactoryクラス
+
+オブジェクトグラフに登録したクラスは、それぞれファクトリーが生成されました。  
+それぞれのファクトリークラスは、Daggerの`Provider<T>`の`get`を実装していて、対象のクラスのインスタンスを生成しています。
+
+`Hoge_Factory`/`Fuga_Factory`は、引数を取るものではないため単純にデフォルトのコンストラクタを呼ぶことで生成されます。
+
+`HiltStudyAppModule_ProvidePiyoFactory`は、`HiltStudyAppModule`に`@Provides`をつけて定義した関数を用いてインスタンスを生成しています。
+
+## HiltStudyApp_MembersInjector
+
+名前の通り、それぞれのインスタンスをメンバー変数としてインジェクトするためのクラスです。
+`Hoge`/`Fuga`/`Piyo`についてそれぞれプロバイダを保持しています。  
+これらのプロバイダは、`create`関数によってDagger内部で生成されるようです。
+
+また、それぞれを実際にメンバー変数としてインジェクトするためのメソッドとして、`injectHoge`/`injectFuga`/`injectPiyo`が定義されています。  
+たとえば、`injectHoge`は以下のように定義されます。
+
+```java
+  public static void injectHoge(HiltStudyApp instance, Hoge hoge) {
+    instance.hoge = hoge;
+  }
+```
+
+引数として、インジェクトする先のインスタンスと、インジェクトするクラスのインスタンスが渡されています。  
+そしてこれらは、`DaggerHiltStudyApp_HiltComponents_SingletonC`から呼び出されていました。
+
+## DaggerHiltStudyApp_HiltComponents_SingletonCの変更
+
+Step1で説明したように、`Hilt_HiltStudyApp`はアプリケーションレベルのコンポーネントに対して(つまり`DaggerHiltStudyApp_HiltComponents_SingletonCの変更`に対して)、`injectHiltStudyApp()`メソッドで、注入を要求するインスタンス(`HiltStudyApp`)を渡しています。
+
+Step1までは、このメソッドはからの実装でしたが、ここに以下のようにコードが追加されます。
 
 ```java
   ...
-  @CallSuper
   @Override
-  public void onCreate() {
-    // This is a known unsafe cast, but is safe in the only correct use case:
-    // HiltStudyApp extends Hilt_HiltStudyApp
-    ((HiltStudyApp_GeneratedInjector) generatedComponent()).injectHiltStudyApp(UnsafeCasts.<HiltStudyApp>unsafeCast(this));
-    super.onCreate();
+  public void injectHiltStudyApp(HiltStudyApp hiltStudyApp) {
+    injectHiltStudyApp2(hiltStudyApp);
+  }
+
+  private HiltStudyApp injectHiltStudyApp2(HiltStudyApp instance) {
+    HiltStudyApp_MembersInjector.injectHoge(instance, new Hoge());
+    HiltStudyApp_MembersInjector.injectFuga(instance, fuga());
+    HiltStudyApp_MembersInjector.injectPiyo(instance, HiltStudyAppModule_ProvidePiyoFactory.providePiyo());
+    return instance;
   }
   ...
 ```
 
-ここで出た`HiltStudyApp_GeneratedInjector`は、アノテーションにより生成されたインタフェースです。`DaggerHiltStudyApp_HiltComponents_SingletonC`が実装しています。
+`injectHiltStudyApp2()`メソッドが生成され、`HiltStudyApp_MembersInjector`の各メソッドを呼び出し、メンバー変数にインスタンスを注入していることがわかります。
 
-`generatedComponent`は`Hilt_HiltStudyApp`が実装しています。`ApplicationComponentManager`内部のコンポーネント、つまり`DaggerHiltStudyApp_HiltComponents_SingletonC`を返す実装になっています。
-
-## HiltStudyApp_HiltDaggerHiltStudyApp_HiltComponents_SingletonCComponents
-
-次にこれです。前述の通り、生成された`Hilt_HiltStudyApp`の持つ`ApplicationComponentManager`が内部で持っているコンポーネントになります。
-
-このクラスは内部に自身のビルダークラス、ViewModelレベルのコンポーネントとそのビルダークラス、サービスレベルのコンポーネントとそのビルダークラスが定義されていました。
+ここで、`@Singleton`スコープをつけて定義した`Fuga`クラスのインスタンスは`fuga()`メソッドで取得していることに気づきます。  
+このメソッドは別途、以下のように追加されていました。
 
 ```java
-public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStudyApp_HiltComponents.SingletonC {
   ...
-  public static final class Builder { ... }
-  private final class ActivityRetainedCBuilder ...
-  private final class ActivityRetainedCImpl ...
-  private final class ServiceCBuilder ...
-  private final class ServiceCImpl ...
-}
+  private volatile Object fuga = new MemoizedSentinel();
+  ...
+  private Fuga fuga() {
+    Object local = fuga;
+    if (local instanceof MemoizedSentinel) {
+      synchronized (local) {
+        local = fuga;
+        if (local instanceof MemoizedSentinel) {
+          local = new Fuga();
+          fuga = DoubleCheck.reentrantCheck(fuga, local);
+        }
+      }
+    }
+    return (Fuga) local;
+  }
+  ...
 ```
 
-さらに、ViewModelレベルのコンポーネントクラスの内部では、アクティビティレベルのコンポーネントとそのビルダークラスが定義されています。さらに…といった具合に、[Hiltの定義したコンポーネント階層](https://developer.android.com/training/dependency-injection/hilt-android?hl=ja#component-hierarchy)に沿ってコードが生成されていました。おもしろい。
+細かい説明は省きますが、一度生成したインスタンスを使いまわしていることがわかります。指定したスコープ通り、シングルトンなインスタンスが注入されていますね。
 
-各レベルのコンポーネントは、`HiltStudyApp_HiltComponents`に定義された抽象クラスを継承しているようです。見やすいので後ほどかんたんに説明します。
+## HiltStudyApp_HiltComponentsの変更
 
-## HiltStudyApp_GeneratedInjector
-
-前述したように、`DaggerHiltStudyApp_HiltComponents_SingletonC`により実装されているインタフェースです。`injectHiltStudyApp`のみ定義されています。
-
-これをアプリケーションクラスが呼び出すことにより、アプリケーションレベルのコンポーネントに`HiltStudyApp`がアクセスできるようになります。(自動生成で`Hilt_HiltStudyApp`がやっている。)
-
-## HiltStudyApp_HiltComponents
-
-アプリケーションにおけるHiltのコンポーネント定義がこちらにまとまっています。ここでコンポーネント階層の標準化がなされているようです。
-
-`@Component`アノテーションがつくのは唯一`HiltStudyApp_HiltComponents.SingletonC`クラスのみです。
+`HiltStudyApp_HiltComponents`については1行のみ追加されていました。
 
 ```java
   ...
   @Component(
       modules = {
           ApplicationContextModule.class,
++         HiltStudyAppModule.class,
           ActivityRetainedCBuilderModule.class,
           ServiceCBuilderModule.class
       }
@@ -119,50 +160,12 @@ public final class DaggerHiltStudyApp_HiltComponents_SingletonC extends HiltStud
   ...
 ```
 
-`SingletonComponent`のデフォルトのバインディングであるアプリケーションを提供する`ApplicationContextModule`の他、コンポーネント階層に従って、`ActivityRetainedCBuilderModule`/`ServiceCBuilderModule`がコンポーネントに指定されています。
+Dagger2を使ったことがある人は、モジュールを追加するたびにそれをコンポーネントへ指定していたことを思い出すでしょう。Hiltではこのようにしてこれを自動でやってくれます。便利。
 
-その他のコンポーネントはそれぞれ`@Subcomponent`アノテーションがついたサブコンポーネントとして定義されています。そして、デフォルトのバインディングを提供するモジュールと、コンポーネント階層に従ったモジュールが指定されています。  
-以下は`ActivityComponent`の例です。
+モジュールを追加して`@InstallIn`アノテーションをつけるだけで指定のコンポーネントのオブジェクトグラフにバインディング登録される謎がこれで解けました。
 
-```java
-  @Subcomponent(
-      modules = {
-          FragmentCBuilderModule.class,
-          ViewCBuilderModule.class,
-          HiltWrapper_ActivityModule.class,
-          HiltWrapper_DefaultViewModelFactories_ActivityModule.class
-      }
-  )
-  @ActivityScoped
-  public abstract static class ActivityC implements ActivityComponent,
-      DefaultViewModelFactories.ActivityEntryPoint,
-      FragmentComponentManager.FragmentComponentBuilderEntryPoint,
-      ViewComponentManager.ViewComponentBuilderEntryPoint,
-      GeneratedComponent {
-    @Subcomponent.Builder
-    abstract interface Builder extends ActivityComponentBuilder {
-    }
-  }
-```
+## その他
 
-こうして、Hiltではアクティビティごとに1つではなく、唯一1つのアクティビティコンポーネントを持つことがわかります。
+`com_rmakiyama_daggerhiltstudy_HiltStudyAppModuleModuleDeps`クラスも生成されていましたが、割愛します。Step1同様、コンパイラのためのクラスでしょうか。
 
-## com_rmakiyama_daggerhiltstudy_HiltStudyApp_GeneratedInjectorModuleDeps
-
-`@HiltAndroidApp`アノテーションをアプリケーションで定義しただけの段階では以下のようなコードが生成されました。
-
-```java
-/**
- * Generated class to pass information through multiple javac runs.
- */
-@AggregatedDeps(
-    components = "dagger.hilt.components.SingletonComponent",
-    entryPoints = "com.rmakiyama.daggerhiltstudy.HiltStudyApp_GeneratedInjector"
-)
-class com_rmakiyama_daggerhiltstudy_HiltStudyApp_GeneratedInjectorModuleDeps {
-}
-```
-
-コメントにあるように、コンパイラに生成クラスのパスを知らせるためのクラスかなという理解までしかできませんでした…。一旦保留。
-
-[Step2に進む👉🏻](https://github.com/rmakiyama/DaggerHiltStudy/tree/step-2_add-binding)
+[Step3に進む👉🏻](https://github.com/rmakiyama/DaggerHiltStudy/tree/step-3_add-AndroidEntryPoint)
